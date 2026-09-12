@@ -44,14 +44,17 @@ type ODsayPath = {
   subPath?: ODsaySubPath[];
 };
 
+type ODsayError = {
+  code?: string | number;
+  message?: string;
+};
+
 type ODsayResponse = {
   result?: {
     path?: ODsayPath[];
   };
-  error?: {
-    code?: string | number;
-    msg?: string;
-  };
+  // ODsay는 에러를 배열로 감싸서 반환한다: {"error":[{"code":"500","message":"..."}]}
+  error?: ODsayError[] | ODsayError;
 };
 
 function trafficTypeToMode(trafficType?: number): SegmentMode {
@@ -169,8 +172,9 @@ export async function getODsayTransitRoutes(
 
   const data = (await response.json()) as ODsayResponse;
   if (data.error) {
+    const firstError = Array.isArray(data.error) ? data.error[0] : data.error;
     throw new Error(
-      `ODsay API 오류 (${String(data.error.code ?? "unknown")}): ${data.error.msg ?? "응답 오류"}`,
+      `ODsay API 오류 (${String(firstError?.code ?? "unknown")}): ${firstError?.message ?? "응답 오류"}`,
     );
   }
 
