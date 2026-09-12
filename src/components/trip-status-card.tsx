@@ -13,9 +13,18 @@ import type { TripStatus } from "@/types/trip";
 
 type TripStatusCardProps = {
   status: TripStatus;
+  lastUpdatedAt?: string;
 };
 
-export function TripStatusCard({ status }: TripStatusCardProps) {
+function formatUpdatedLabel(lastUpdatedAt: string | undefined, now: Date | null): string {
+  if (!lastUpdatedAt || !now) return "실시간 위치 추적 중";
+  const seconds = Math.max(0, Math.round((now.getTime() - new Date(lastUpdatedAt).getTime()) / 1000));
+  if (seconds < 60) return "방금 경로 갱신됨";
+  const minutes = Math.round(seconds / 60);
+  return `${minutes}분 전 경로 갱신됨`;
+}
+
+export function TripStatusCard({ status, lastUpdatedAt }: TripStatusCardProps) {
   const [now, setNow] = useState<Date | null>(null);
   const riskMeta = RISK_META[status.riskLevel];
 
@@ -72,7 +81,9 @@ export function TripStatusCard({ status }: TripStatusCardProps) {
           </span>
           <h1 className="text-sm font-extrabold text-slate-900">실시간 이동 현황</h1>
         </div>
-        <p className="text-[11px] font-semibold text-slate-400">10초마다 자동 갱신</p>
+        <p className="text-[11px] font-semibold text-slate-400">
+          {formatUpdatedLabel(lastUpdatedAt, now)}
+        </p>
       </div>
 
       <div className="p-5 sm:p-7">

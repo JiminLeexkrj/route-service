@@ -7,6 +7,7 @@ import { useTripDemo } from "@/hooks/use-trip-demo";
 export function AppShell() {
   const {
     trip,
+    livePosition,
     error,
     isStarting,
     isSimulating,
@@ -31,6 +32,7 @@ export function AppShell() {
   return (
     <TripDashboard
       trip={trip}
+      livePosition={livePosition}
       error={error}
       isSimulating={isSimulating}
       onSimulateTraffic={simulateTrafficEvent}

@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         evaluation,
+        routes: routesResponse.routes,
         routeSource: routesResponse.source,
         warnings: routesResponse.warnings,
         demo: routesResponse.demo,

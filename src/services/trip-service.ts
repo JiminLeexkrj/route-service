@@ -1,7 +1,8 @@
-import type { SwitchHistory, TripEvaluation } from "@/lib/algorithm/types";
+import { evaluateTrip } from "@/lib/algorithm/evaluateTrip";
+import type { DataMode, SwitchHistory, TripEvaluation } from "@/lib/algorithm/types";
 import { getCurrentPosition } from "@/lib/location/geolocation";
 import { searchPlace } from "@/lib/routes/client";
-import type { Coordinate } from "@/lib/routes/types";
+import type { Coordinate, RawRoute } from "@/lib/routes/types";
 import { formatClock } from "@/lib/time";
 import {
   createInitialMockTrip,
@@ -28,11 +29,12 @@ export interface RouteProvider {
 export interface TripService {
   getCurrentLocation(): Promise<CurrentLocation>;
   startTrip(request: StartTripRequest): Promise<TripSnapshot>;
-  getTripSnapshot(tripId: string): Promise<TripSnapshot>;
+  // origin: 최신 GPS 위치로 갱신 요청할 때 전달 (실시간 위치 추적용)
+  getTripSnapshot(tripId: string, origin?: Coordinate): Promise<TripSnapshot>;
   savePreferences(
     tripId: string,
     preferences: UserPreferences,
-  ): Promise<void>;
+  ): Promise<TripSnapshot>;
   simulateTrafficEvent(tripId: string): Promise<TripSnapshot>;
 }
 
@@ -54,7 +56,7 @@ class MockTripService implements TripService {
     return trip;
   }
 
-  async getTripSnapshot(tripId: string) {
+  async getTripSnapshot(tripId: string, _origin?: Coordinate) {
     await wait(250);
     const trip = this.trips.get(tripId);
     if (!trip) throw new Error("이동 정보를 찾을 수 없습니다.");
@@ -63,9 +65,9 @@ class MockTripService implements TripService {
 
   async savePreferences(tripId: string, _preferences: UserPreferences) {
     await wait(350);
-    if (!this.trips.has(tripId)) {
-      throw new Error("이동 정보를 찾을 수 없습니다.");
-    }
+    const trip = this.trips.get(tripId);
+    if (!trip) throw new Error("이동 정보를 찾을 수 없습니다.");
+    return trip;
   }
 
   async simulateTrafficEvent(tripId: string) {
@@ -81,6 +83,7 @@ class MockTripService implements TripService {
 
 type EvaluateApiResponse = {
   evaluation: TripEvaluation;
+  routes: RawRoute[];
   routeSource: "live" | "mock";
   warnings?: string[];
   demo?: { message: string };
@@ -95,6 +98,10 @@ type TripSession = {
   preferences: UserPreferences;
   history: SwitchHistory;
   demoElapsedSeconds: number;
+  // 경로 후보를 캐시해서, 선호도만 바뀐 경우 Tmap/Kakao를 다시 호출하지 않고
+  // 같은 후보를 새 선호도로 재평가한다 (§13-7, 유료 API 절약).
+  lastRawRoutes?: RawRoute[];
+  lastDataMode: DataMode;
 };
 
 /**
@@ -140,6 +147,7 @@ class ApiTripService implements TripService {
       preferences: request.preferences,
       history: { candidateStreak: 0 },
       demoElapsedSeconds: 0,
+      lastDataMode: "DEMO",
     };
     this.sessions.set(tripId, session);
 
@@ -152,8 +160,9 @@ class ApiTripService implements TripService {
     return this.toSnapshot(tripId, session, evaluation, demo?.message ?? null);
   }
 
-  async getTripSnapshot(tripId: string): Promise<TripSnapshot> {
+  async getTripSnapshot(tripId: string, origin?: Coordinate): Promise<TripSnapshot> {
     const session = this.requireSession(tripId);
+    if (origin) session.origin = origin;
     const { evaluation, demo } = await this.requestEvaluation(session);
     this.applyHistory(session, evaluation);
     return this.toSnapshot(tripId, session, evaluation, demo?.message ?? null);
@@ -162,17 +171,28 @@ class ApiTripService implements TripService {
   async savePreferences(
     tripId: string,
     preferences: UserPreferences,
-  ): Promise<void> {
+  ): Promise<TripSnapshot> {
     const session = this.requireSession(tripId);
     session.preferences = preferences;
+
+    if (!session.lastRawRoutes) {
+      const { evaluation, demo } = await this.requestEvaluation(session);
+      this.applyHistory(session, evaluation);
+      return this.toSnapshot(tripId, session, evaluation, demo?.message ?? null);
+    }
+
+    const evaluation = this.reevaluateLocally(session);
+    this.applyHistory(session, evaluation);
+    return this.toSnapshot(tripId, session, evaluation, null);
   }
 
   async simulateTrafficEvent(tripId: string): Promise<TripSnapshot> {
     const session = this.requireSession(tripId);
     // 데모 시나리오의 "교통체증 발생" 지점을 강제로 지나가게 해서
     // 같은 평가 코드가 실제로 확률을 재계산하게 한다 (문서 §9).
+    // mode를 demo로 고정해서 실제 Tmap/Kakao 호출 없이 시연한다 (유료 API 절약).
     session.demoElapsedSeconds = 999;
-    const { evaluation, demo } = await this.requestEvaluation(session);
+    const { evaluation, demo } = await this.requestEvaluation(session, "demo");
     this.applyHistory(session, evaluation);
     return this.toSnapshot(tripId, session, evaluation, demo?.message ?? null);
   }
@@ -194,6 +214,7 @@ class ApiTripService implements TripService {
 
   private async requestEvaluation(
     session: TripSession,
+    mode?: "demo",
   ): Promise<EvaluateApiResponse> {
     const response = await fetch("/api/evaluate", {
       method: "POST",
@@ -206,6 +227,7 @@ class ApiTripService implements TripService {
         preferences: session.preferences,
         demoElapsedSeconds: session.demoElapsedSeconds,
         history: session.history,
+        ...(mode ? { mode } : {}),
       }),
     });
 
@@ -214,7 +236,28 @@ class ApiTripService implements TripService {
       throw new Error(body?.error?.message ?? "경로 평가에 실패했습니다.");
     }
 
-    return response.json();
+    const data = (await response.json()) as EvaluateApiResponse;
+    session.lastRawRoutes = data.routes;
+    session.lastDataMode = data.evaluation.dataMode;
+    return data;
+  }
+
+  /**
+   * 이미 받아온 경로 후보를 새 선호도로 다시 평가한다. 네트워크 호출이 없어서
+   * Tmap/Kakao 사용량에 영향을 주지 않는다.
+   */
+  private reevaluateLocally(session: TripSession): TripEvaluation {
+    if (!session.lastRawRoutes) {
+      throw new Error("아직 평가된 경로가 없습니다.");
+    }
+    return evaluateTrip({
+      now: Date.now(),
+      deadline: session.deadline,
+      rawRoutes: session.lastRawRoutes,
+      preferences: session.preferences,
+      dataMode: session.lastDataMode,
+      history: session.history,
+    });
   }
 
   private toSnapshot(

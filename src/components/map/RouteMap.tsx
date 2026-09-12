@@ -44,29 +44,35 @@ function FallbackRouteMap({
   route,
   className = "",
 }: RouteMapProps) {
-  const normalized = useMemo(() => {
-    const path =
+  // "현재 위치" 마커는 항상 실시간 origin을 반영해야 하므로, 경로가 오래돼서
+  // origin이 폴리라인 시작점과 어긋나 있어도 별도로 좌표를 투영한다.
+  const { linePoints, originPoint, destinationPoint } = useMemo(() => {
+    const routePoints =
       route?.polyline && route.polyline.length > 1
         ? route.polyline
         : [origin, destination];
-    const lngs = path.map((point) => point.lng);
-    const lats = path.map((point) => point.lat);
+    const boundsPoints = [...routePoints, origin, destination];
+    const lngs = boundsPoints.map((point) => point.lng);
+    const lats = boundsPoints.map((point) => point.lat);
     const minLng = Math.min(...lngs);
     const maxLng = Math.max(...lngs);
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
     const lngRange = maxLng - minLng || 1;
     const latRange = maxLat - minLat || 1;
-
-    return path.map((point) => ({
+    const project = (point: Coordinate) => ({
       x: 10 + ((point.lng - minLng) / lngRange) * 80,
       y: 90 - ((point.lat - minLat) / latRange) * 80,
-    }));
+    });
+
+    return {
+      linePoints: routePoints.map(project),
+      originPoint: project(origin),
+      destinationPoint: project(destination),
+    };
   }, [destination, origin, route?.polyline]);
 
-  const line = normalized.map((point) => `${point.x},${point.y}`).join(" ");
-  const start = normalized[0];
-  const end = normalized[normalized.length - 1];
+  const line = linePoints.map((point) => `${point.x},${point.y}`).join(" ");
 
   return (
     <div
@@ -84,8 +90,21 @@ function FallbackRouteMap({
           strokeLinejoin="round"
           strokeWidth="2.5"
         />
-        <circle cx={start.x} cy={start.y} r="3" fill="#2563eb" stroke="white" />
-        <circle cx={end.x} cy={end.y} r="3" fill="#ef4444" stroke="white" />
+        <circle
+          cx={originPoint.x}
+          cy={originPoint.y}
+          r="3"
+          fill="#2563eb"
+          stroke="white"
+        >
+          <animate
+            attributeName="opacity"
+            values="1;0.4;1"
+            dur="2s"
+            repeatCount="indefinite"
+          />
+        </circle>
+        <circle cx={destinationPoint.x} cy={destinationPoint.y} r="3" fill="#ef4444" stroke="white" />
       </svg>
       <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
         지도 SDK 미설정 · 경로 도식
@@ -184,6 +203,9 @@ export function RouteMap({
 
     const bounds = new maps.LatLngBounds();
     kakaoPath.forEach((point) => bounds.extend(point));
+    // 경로가 갱신되기 전 실시간 위치가 폴리라인 밖으로 벗어나도 마커가 보이게 한다.
+    bounds.extend(originPosition);
+    bounds.extend(destinationPosition);
     map.relayout();
     map.setBounds(bounds, 56, 56, 56, 56);
 

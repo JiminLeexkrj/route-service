@@ -17,6 +17,7 @@ import { RecommendedActionCard } from "@/components/recommended-action-card";
 import { RouteComparison } from "@/components/route-comparison";
 import { TripStatusCard } from "@/components/trip-status-card";
 import { UserPreferencePanel } from "@/components/user-preference-panel";
+import type { Coordinate } from "@/lib/routes/types";
 import {
   DEFAULT_PREFERENCES,
   type RouteOption,
@@ -26,6 +27,7 @@ import {
 
 type TripDashboardProps = {
   trip: TripSnapshot;
+  livePosition: Coordinate | null;
   error: string | null;
   isSimulating: boolean;
   onSimulateTraffic: () => Promise<void>;
@@ -35,6 +37,7 @@ type TripDashboardProps = {
 
 export function TripDashboard({
   trip,
+  livePosition,
   error,
   isSimulating,
   onSimulateTraffic,
@@ -129,7 +132,7 @@ export function TripDashboard({
         )}
 
         <div className="space-y-5 sm:space-y-6">
-          <TripStatusCard status={trip.status} />
+          <TripStatusCard status={trip.status} lastUpdatedAt={trip.updatedAt} />
 
           <AlertBanner
             alert={trip.alert}
@@ -139,9 +142,9 @@ export function TripDashboard({
 
           <RecommendedActionCard status={trip.status} alert={trip.alert} />
 
-          {trip.origin && trip.destinationCoordinate && (
+          {(livePosition ?? trip.origin) && trip.destinationCoordinate && (
             <RouteMap
-              origin={trip.origin}
+              origin={(livePosition ?? trip.origin)!}
               destination={trip.destinationCoordinate}
               route={trip.routes.find((route) => route.id === selectedRouteId)}
               className="h-72 sm:h-80"
@@ -163,7 +166,10 @@ export function TripDashboard({
           />
 
           <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-1 pt-5 text-center text-[11px] font-medium text-slate-400 sm:flex-row sm:text-left">
-            <span>실제 서비스에서는 교통 API 데이터가 자동 반영됩니다.</span>
+            <span>
+              실시간 GPS 위치를 추적하며, 150m 이상 이동하고 3분이 지나면 경로를
+              자동으로 다시 계산합니다.
+            </span>
             <button
               type="button"
               onClick={onBack}
