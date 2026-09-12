@@ -20,7 +20,7 @@ npm run dev
 ```
 
 `http://localhost:3000` 접속. **API 키가 없어도 그대로 동작합니다** — `lib/routes/service.ts`가
-Kakao/ODsay 호출 실패를 자동으로 감지해 Mock 경로 데이터로 전환하고, DARTS 평가 코드는 실제 데이터와
+Kakao/Tmap 호출 실패를 자동으로 감지해 Mock 경로 데이터로 전환하고, DARTS 평가 코드는 실제 데이터와
 동일한 방식으로 그 Mock 데이터를 평가합니다.
 
 데모에서 검색 가능한 목적지(Mock 장소 DB): `서울역`, `고려대학교`, `강남역`, `서울시청`.
@@ -33,8 +33,11 @@ Kakao/ODsay 호출 실패를 자동으로 감지해 Mock 경로 데이터로 전
 ```dotenv
 NEXT_PUBLIC_KAKAO_MAP_JAVASCRIPT_KEY=
 KAKAO_REST_API_KEY=
-ODSAY_API_KEY=
+TMAP_API_KEY=
 ```
+
+`TMAP_API_KEY`는 [openapi.sk.com](https://openapi.sk.com)에서 앱 생성 후 "대중교통" 상품을 등록하면
+appKey로 발급됩니다. HTTP 헤더(`appKey`) 인증이라 Kakao Local과 마찬가지로 서버 발신 IP 제약이 없습니다.
 
 ## 알고리즘 모듈 (`src/lib/algorithm`)
 
@@ -53,4 +56,4 @@ ODSAY_API_KEY=
 
 - 사용자별 도보 속도 학습(§5-B), 실제 이동편 단위 fallback(§4 FallbackBranch)은 정책 단위 fallback으로 단순화했습니다.
 - 전환 확인 횟수·쿨다운(§5-H)은 서버 메모리의 트립 세션에 저장하며, 서버 재시작 시 초기화됩니다(DB 없음).
-- ODsay는 서버 발신 IP를 등록해야 하므로 Vercel 같은 서버리스 배포에서는 대중교통 경로가 계속 Mock으로 전환될 수 있습니다.
+- Tmap 대중교통 API 무료 티어는 일 10건 호출 제한이 있습니다(SK Open API "대중교통" 상품 기준). 한도를 넘으면 Mock으로 자동 전환됩니다.

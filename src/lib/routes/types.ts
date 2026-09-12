@@ -23,7 +23,7 @@ export type RouteSegment = {
   routeName?: string;
 };
 
-export type RouteProvider = "ODSAY" | "KAKAO_MOBILITY" | "MOCK";
+export type RouteProvider = "TMAP" | "KAKAO_MOBILITY" | "MOCK";
 
 export type RawRoute = {
   id: string;

@@ -1,6 +1,6 @@
 import { buildMockRoutes } from "./mock";
 import { getKakaoCarRoutes } from "./providers/kakao-mobility";
-import { getODsayTransitRoutes } from "./providers/odsay";
+import { getTmapTransitRoutes } from "./providers/tmap";
 import type {
   Coordinate,
   RawRoute,
@@ -51,9 +51,9 @@ export async function getRouteCandidates({
   }
 
   const warnings: string[] = [];
-  const transitPromise = process.env.ODSAY_API_KEY
-    ? getODsayTransitRoutes(origin, destination)
-    : Promise.reject(new Error("ODSAY_API_KEY가 설정되지 않았습니다."));
+  const transitPromise = process.env.TMAP_API_KEY
+    ? getTmapTransitRoutes(origin, destination)
+    : Promise.reject(new Error("TMAP_API_KEY가 설정되지 않았습니다."));
   const carPromise = process.env.KAKAO_REST_API_KEY
     ? getKakaoCarRoutes(origin, destination)
     : Promise.reject(new Error("KAKAO_REST_API_KEY가 설정되지 않았습니다."));
