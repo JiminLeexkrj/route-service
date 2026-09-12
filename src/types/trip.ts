@@ -1,3 +1,5 @@
+import type { Coordinate, TravelMode } from "@/lib/routes/types";
+
 export type RiskLevel = "SAFE" | "CAUTION" | "DANGER" | "LATE";
 
 export type RouteOption = {
@@ -9,6 +11,8 @@ export type RouteOption = {
   onTimeProbability: number;
   extraCost: number;
   recommended: boolean;
+  mode?: TravelMode;
+  polyline?: Coordinate[];
 };
 
 export type TripStatus = {
@@ -59,6 +63,8 @@ export type TripSnapshot = {
   routes: RouteOption[];
   alert: TrafficAlert | null;
   updatedAt: string;
+  origin?: Coordinate;
+  destinationCoordinate?: Coordinate;
 };
 
 export const DEFAULT_PREFERENCES: UserPreferences = {

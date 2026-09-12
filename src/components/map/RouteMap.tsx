@@ -3,12 +3,17 @@
 import Script from "next/script";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { Coordinate, RawRoute } from "@/lib/routes/types";
+import type { Coordinate, TravelMode } from "@/lib/routes/types";
+
+type DisplayRoute = {
+  mode?: TravelMode;
+  polyline?: Coordinate[];
+};
 
 type RouteMapProps = {
   origin: Coordinate;
   destination: Coordinate;
-  route?: RawRoute | null;
+  route?: DisplayRoute | null;
   className?: string;
 };
 

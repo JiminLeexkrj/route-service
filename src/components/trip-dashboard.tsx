@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { AlertBanner } from "@/components/alert-banner";
 import { AppHeader } from "@/components/app-header";
+import { RouteMap } from "@/components/map/RouteMap";
 import { RecommendedActionCard } from "@/components/recommended-action-card";
 import { RouteComparison } from "@/components/route-comparison";
 import { TripStatusCard } from "@/components/trip-status-card";
@@ -137,6 +138,15 @@ export function TripDashboard({
           />
 
           <RecommendedActionCard status={trip.status} alert={trip.alert} />
+
+          {trip.origin && trip.destinationCoordinate && (
+            <RouteMap
+              origin={trip.origin}
+              destination={trip.destinationCoordinate}
+              route={trip.routes.find((route) => route.id === selectedRouteId)}
+              className="h-72 sm:h-80"
+            />
+          )}
 
           <div className="pt-3 sm:pt-5">
             <RouteComparison

@@ -116,6 +116,8 @@ export function buildPolicies(
       id: route.id,
       label: policyLabel(route),
       sourceRouteId: route.id,
+      mode: route.mode,
+      polyline: route.polyline,
       segments,
       extraCost: route.fare ?? 0,
       walkingMinutes,

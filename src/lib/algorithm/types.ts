@@ -1,4 +1,4 @@
-import type { RawRoute } from "@/lib/routes/types";
+import type { Coordinate, RawRoute, TravelMode } from "@/lib/routes/types";
 import type { RiskLevel, UserPreferences } from "@/types/trip";
 
 // RawRoute의 SegmentMode(WALK|BUS|SUBWAY|CAR)와 달리 RUN/TAXI를 분리한다 (문서 §4).
@@ -31,6 +31,8 @@ export type RoutePolicy = {
   id: string;
   label: string;
   sourceRouteId: string;
+  mode: TravelMode;
+  polyline?: Coordinate[];
   segments: RealtimeRouteSegment[];
   extraCost: number;
   walkingMinutes: number;

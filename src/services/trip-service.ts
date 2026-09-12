@@ -242,6 +242,8 @@ class ApiTripService implements TripService {
       onTimeProbability: Math.round(forecast.onTimeProbability * 100),
       extraCost: policy.extraCost,
       recommended: policy.id === evaluation.recommendedPolicyId,
+      mode: policy.mode,
+      polyline: policy.polyline,
     }));
 
     let alert: TrafficAlert | null = null;
@@ -276,6 +278,8 @@ class ApiTripService implements TripService {
       routes,
       alert,
       updatedAt: new Date(now).toISOString(),
+      origin: session.origin,
+      destinationCoordinate: session.destinationCoordinate,
     };
   }
 }
