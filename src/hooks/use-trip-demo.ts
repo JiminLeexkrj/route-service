@@ -19,8 +19,9 @@ export function useTripDemo() {
     setError(null);
     try {
       return await tripService.getCurrentLocation();
-    } catch {
-      const message = "현재 위치를 확인하지 못했습니다.";
+    } catch (cause) {
+      const message =
+        cause instanceof Error ? cause.message : "현재 위치를 확인하지 못했습니다.";
       setError(message);
       throw new Error(message);
     }
@@ -32,8 +33,12 @@ export function useTripDemo() {
     try {
       const snapshot = await tripService.startTrip(request);
       setTrip(snapshot);
-    } catch {
-      setError("길찾기를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "길찾기를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     } finally {
       setIsStarting(false);
     }
@@ -46,8 +51,12 @@ export function useTripDemo() {
     try {
       const snapshot = await tripService.simulateTrafficEvent(trip.tripId);
       setTrip(snapshot);
-    } catch {
-      setError("교통정보를 업데이트하지 못했습니다.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "교통정보를 업데이트하지 못했습니다.",
+      );
     } finally {
       setIsSimulating(false);
     }
